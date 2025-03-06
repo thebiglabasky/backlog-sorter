@@ -28,11 +28,6 @@ export interface PrioritizerOptions {
   useScoringCache: boolean;
 }
 
-// Metabase employee aliases to identify internal vs external interactions
-export const EMPLOYEE_ALIASES = process.env.LINEAR_EMPLOYEE_GITHUB_ALIASES ?
-  process.env.LINEAR_EMPLOYEE_GITHUB_ALIASES.split(',') :
-  [];
-
 /**
  * Load configuration from environment variables
  */

@@ -96,6 +96,9 @@ async function displayLinearInfo() {
 }
 
 // Run the main function
-if (require.main === module) {
+// In ES modules, we can check if this is the main module by comparing import.meta.url
+// against the URL of the current module
+const isMainModule = import.meta.url === `file://${process.argv[1]}`;
+if (isMainModule) {
   displayLinearInfo().catch(console.error);
 }

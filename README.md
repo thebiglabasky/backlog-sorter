@@ -10,6 +10,7 @@ A tool to automatically prioritize and sort your Linear backlog based on various
 - Caches results to avoid unnecessary API calls
 - Compares scoring changes between runs
 - Detailed statistics and analysis
+- Configurable scoring weights to customize prioritization
 
 ## Installation
 
@@ -23,14 +24,25 @@ A tool to automatically prioritize and sort your Linear backlog based on various
 Create a `.env` file with the following variables:
 
 ```
+# Required configuration
 LINEAR_API_KEY=lin_api_xxxxxxxxxxxx
 LINEAR_TEAM_ID=team_xxxxxxxx
 LINEAR_BACKLOG_STATE_ID=state_xxxxxxxx
-LINEAR_TARGET_INITIATIVE=Q3 Goals
+
+# Optional configuration
 LINEAR_TARGET_PROJECT=Performance Improvements
 LINEAR_RELEVANCE_KEYWORDS=performance,speed,optimization,latency
 LINEAR_CACHE_TTL_HOURS=48
-LINEAR_EMPLOYEE_GITHUB_ALIASES=user1,user2,user3
+
+# Scoring weights (must sum to 1)
+WEIGHT_RELEVANCE=0.5
+WEIGHT_COMPLEXITY=0.3
+WEIGHT_VALUE=0.2
+
+# Value components weights (must sum to 1)
+WEIGHT_PRIORITY=0.5
+WEIGHT_RECENCY=0.3
+WEIGHT_INTERACTIONS=0.2
 ```
 
 To find your team ID and backlog state ID, run:
@@ -38,6 +50,8 @@ To find your team ID and backlog state ID, run:
 ```
 npm run find-ids
 ```
+
+See `.env.example` for a complete example configuration with comments.
 
 ## Usage
 
@@ -79,11 +93,18 @@ The project is organized into the following modules:
 
 ## Scoring Factors
 
-Issues are scored based on:
+Issues are scored based on three main factors with configurable weights:
 
-1. **Project Relevance (50%)** - How relevant the issue is to your project based on keywords
-2. **Value Score (30%)** - Combination of priority, recency, and interactions
-3. **Complexity Score (20%)** - Estimated complexity (simpler issues score higher)
+1. **Project Relevance (default: 50%)** - How relevant the issue is to your project based on keywords
+2. **Complexity Score (default: 30%)** - Estimated complexity (simpler issues score higher)
+3. **Value Score (default: 20%)** - Combination of priority, recency, and interactions
+
+The Value Score is further broken down into:
+- **Priority (default: 50%)** - Issue priority label
+- **Recency (default: 30%)** - How recently the issue was created or updated
+- **Interactions (default: 20%)** - Number and type of interactions on the issue
+
+You can adjust all these weights in your `.env` file to customize the scoring algorithm for your team's needs.
 
 ## License
 
