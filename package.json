@@ -1,0 +1,39 @@
+{
+  "name": "backlog-sorter",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "find-ids": "node --no-warnings --loader ts-node/esm find-ids.ts",
+    "start": "node --no-warnings --loader ts-node/esm main.ts",
+    "refresh": "node --no-warnings --loader ts-node/esm main.ts --refresh",
+    "update": "node --no-warnings --loader ts-node/esm main.ts --update",
+    "update-no-cache": "node --no-warnings --loader ts-node/esm main.ts --update --no-cache",
+    "update-no-scoring-cache": "node --no-warnings --loader ts-node/esm main.ts --update --no-scoring-cache",
+    "score-only": "node --no-warnings --loader ts-node/esm main.ts --score-only --no-scoring-cache",
+    "show-scores": "node --no-warnings --loader ts-node/esm main.ts --show-scores",
+    "clear-score-cache": "node --no-warnings --loader ts-node/esm main.ts --clear-scoring-cache",
+    "clear-issues-cache": "node --no-warnings --loader ts-node/esm main.ts --clear-issues-cache",
+    "clear-cache": "node --no-warnings --loader ts-node/esm main.ts --clear-cache",
+    "cache-info": "node --no-warnings --loader ts-node/esm main.ts --cache-info",
+    "scoring-cache-info": "node --no-warnings --loader ts-node/esm main.ts --scoring-cache-info",
+    "stats": "node --no-warnings --loader ts-node/esm main.ts --stats",
+    "options": "node --no-warnings --loader ts-node/esm main.ts --help"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@linear/sdk": "^38.0.0",
+    "@types/fs-extra": "^11.0.4",
+    "chalk": "^5.4.1",
+    "dotenv": "^16.4.7",
+    "fs-extra": "^11.3.0",
+    "ora": "^8.2.0"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.2"
+  }
+}
