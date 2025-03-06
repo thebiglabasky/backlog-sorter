@@ -1,4 +1,4 @@
-import { IssueConnection } from '@linear/sdk';
+import { EnrichedIssue } from './issue-fetcher.js';
 interface CacheMetadata {
     lastUpdated: string;
     teamId: string;
@@ -13,9 +13,12 @@ interface ScoringCacheMetadata {
     relevanceKeywords: string[];
 }
 /**
- * Cache issues from the Linear API
+ * Cache issues to disk
+ * @param issues The issues to cache
+ * @param teamId The team ID
+ * @param backlogStateId The backlog state ID
  */
-export declare function cacheIssues(issues: IssueConnection, teamId: string, backlogStateId: string): Promise<void>;
+export declare function cacheIssues(issues: EnrichedIssue[], teamId: string, backlogStateId: string): Promise<void>;
 /**
  * Checks if the cache exists and is valid
  * @param teamId The team ID to validate against

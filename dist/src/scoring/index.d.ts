@@ -1,5 +1,5 @@
-import { Issue } from '@linear/sdk';
 import { PrioritizerConfig } from '../config.js';
+import { EnrichedIssue } from '../issue-fetcher.js';
 import { IssueScore } from '../types.js';
 export declare class IssueScorer {
     private config;
@@ -9,5 +9,5 @@ export declare class IssueScorer {
     /**
      * Score and sort issues
      */
-    scoreIssues(issues: Issue[]): Promise<IssueScore[]>;
+    scoreIssues(issues: EnrichedIssue[]): Promise<IssueScore[]>;
 }

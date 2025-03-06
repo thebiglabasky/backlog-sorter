@@ -2,9 +2,9 @@ import { calculateProjectRelevance, calculateRecencyScore, estimateComplexity, e
 /**
  * Calculate the final score for an issue based on all scoring components
  */
-export async function calculateIssueScore(issue, relevanceKeywords, comments) {
+export function calculateIssueScore(issue, relevanceKeywords, comments) {
     // Extract priority from issue labels
-    const priorityLabel = await extractPriority(issue);
+    const priorityLabel = extractPriority(issue);
     let priorityScore = 0;
     // Score based on priority label
     if (priorityLabel === 'P1')
@@ -27,13 +27,13 @@ export async function calculateIssueScore(issue, relevanceKeywords, comments) {
     // Use the higher of the two priority scores (label-based or native)
     const finalPriorityScore = Math.max(priorityScore, nativePriorityScore);
     // Calculate project relevance (highest priority)
-    const projectRelevance = await calculateProjectRelevance(issue, relevanceKeywords);
+    const projectRelevance = calculateProjectRelevance(issue, relevanceKeywords);
     // Calculate value components
-    const recencyValue = calculateRecencyScore(issue.updatedAt);
+    const recencyValue = calculateRecencyScore(issue.updatedAt || null);
     const interactionsValue = estimateInteractions(issue, comments);
     const valueScore = (finalPriorityScore * 0.5) + (recencyValue * 0.3) + (interactionsValue * 0.2);
     // Estimate complexity (prefer simpler issues)
-    const complexity = await estimateComplexity(issue);
+    const complexity = estimateComplexity(issue);
     let complexityScore = 0;
     if (complexity === 'Low')
         complexityScore = 100;

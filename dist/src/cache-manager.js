@@ -37,7 +37,10 @@ async function safeAwait(value) {
     return value;
 }
 /**
- * Cache issues from the Linear API
+ * Cache issues to disk
+ * @param issues The issues to cache
+ * @param teamId The team ID
+ * @param backlogStateId The backlog state ID
  */
 export async function cacheIssues(issues, teamId, backlogStateId) {
     const spinner = ora({
@@ -46,47 +49,17 @@ export async function cacheIssues(issues, teamId, backlogStateId) {
     }).start();
     try {
         await ensureCacheDir();
-        // Prepare issues for caching
-        const issuesToCache = await Promise.all(issues.nodes.map(async (issue) => {
-            // Get labels and comments data safely
-            const labelsConnection = await issue.labels();
-            const commentsConnection = await issue.comments();
-            const labels = labelsConnection.nodes || [];
-            const comments = commentsConnection.nodes || [];
-            return {
-                id: issue.id,
-                identifier: issue.identifier,
-                title: issue.title,
-                description: issue.description,
-                priority: issue.priority,
-                createdAt: issue.createdAt,
-                updatedAt: issue.updatedAt,
-                labels: labels.map((label) => ({
-                    id: label.id,
-                    name: label.name
-                })),
-                comments: comments.map((comment) => ({
-                    id: comment.id,
-                    body: comment.body,
-                    user: comment.user ? {
-                        id: comment.user.id,
-                        name: comment.user.name,
-                        handle: comment.user.handle
-                    } : null
-                }))
-            };
-        }));
         // Save the serialized issues
-        await fs.writeJson(ISSUES_CACHE_FILE, issuesToCache, { spaces: 2 });
+        await fs.writeJson(ISSUES_CACHE_FILE, issues, { spaces: 2 });
         // Save metadata
         const metadata = {
             lastUpdated: new Date().toISOString(),
             teamId,
             backlogStateId,
-            issueCount: issues.nodes.length
+            issueCount: issues.length
         };
         await fs.writeJson(CACHE_METADATA_FILE, metadata, { spaces: 2 });
-        spinner.succeed(chalk.green(`Successfully cached ${issues.nodes.length} issues`));
+        spinner.succeed(chalk.green(`Successfully cached ${issues.length} issues`));
     }
     catch (error) {
         spinner.fail(chalk.red('Failed to cache issues'));

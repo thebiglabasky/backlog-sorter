@@ -5,7 +5,8 @@ A tool to automatically prioritize and sort your Linear backlog based on various
 ## Features
 
 - Automatically scores and ranks backlog issues
-- Updates issue order in Linear
+- Updates issue order in Linear with sequential numbering (1, 2, 3, etc.)
+- Fetches up to 200 issues from your backlog
 - Caches results to avoid unnecessary API calls
 - Compares scoring changes between runs
 - Detailed statistics and analysis
@@ -41,15 +42,25 @@ npm run find-ids
 ## Usage
 
 ```
-npm start                   # Score issues without updating Linear
-npm run update              # Score issues and update order in Linear
-npm run refresh             # Force refresh from API
-npm run score-only          # Recompute scores using the issues cache
-npm run compare-scores      # Compare new scores with previous scoring results
-npm run show-scores         # Show cached scores without recomputing
-npm run stats               # Show detailed statistics
-npm run options             # Show all available options
+npm start                # Score issues without updating Linear (alias for npm run score)
+npm run score            # Fetch issues if needed, compute scores, and display results
+npm run compare          # Compare new scores with previous scoring results
+npm run update-linear    # Update issue order in Linear based on scoring
+npm run reset            # Clear all caches
+npm run cache-details    # Show detailed information about caches
+npm run score-details    # Show detailed information about scores
+npm run help             # Show help message with available commands
 ```
+
+## Issue Ordering
+
+When you run `npm run update-linear`, the tool will:
+
+1. Score and sort all issues in your backlog based on the scoring factors
+2. Update the `sortOrder` field in Linear for each issue
+3. Set `sortOrder` values sequentially starting from 1 (highest priority) and incrementing by 1 for each issue
+
+This ensures your backlog is ordered with a clean, sequential numbering system that's easy to understand at a glance.
 
 ## Project Structure
 
@@ -57,7 +68,7 @@ The project is organized into the following modules:
 
 - `src/config.ts` - Configuration parsing
 - `src/cli.ts` - Command invocation management
-- `src/issue-fetcher.ts` - Issues fetching including caching
+- `src/issue-fetcher.ts` - Issues fetching including caching (fetches up to 200 issues)
 - `src/scoring/index.ts` - Main scoring module
 - `src/scoring/components.ts` - Individual scoring components
 - `src/scoring/calculator.ts` - Overall score computation

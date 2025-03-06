@@ -1,11 +1,9 @@
-import { EMPLOYEE_ALIASES } from '../config.js';
 /**
  * Extract priority label from issue labels
  */
-export async function extractPriority(issue) {
-    // Get labels - we need to await the labels fetch and then access nodes
-    const labelsConnection = await issue.labels();
-    const labels = labelsConnection.nodes || [];
+export function extractPriority(issue) {
+    // Get labels from the issue
+    const labels = issue.labels || [];
     // Look for priority labels
     for (const label of labels) {
         if (label.name.startsWith('Priority:P1'))
@@ -20,7 +18,7 @@ export async function extractPriority(issue) {
 /**
  * Calculate project relevance based on keywords in issue title and description
  */
-export async function calculateProjectRelevance(issue, relevanceKeywords) {
+export function calculateProjectRelevance(issue, relevanceKeywords) {
     let relevanceScore = 0;
     const title = issue.title.toLowerCase();
     const description = issue.description ? issue.description.toLowerCase() : '';
@@ -36,9 +34,8 @@ export async function calculateProjectRelevance(issue, relevanceKeywords) {
             relevanceScore += 10;
         }
     }
-    // Check for relevance in labels
-    const labelsConnection = await issue.labels();
-    const labels = labelsConnection.nodes || [];
+    // Get labels from the issue
+    const labels = issue.labels || [];
     for (const label of labels) {
         const labelName = label.name.toLowerCase();
         for (const keyword of relevanceKeywords) {
@@ -78,38 +75,57 @@ export function calculateRecencyScore(date) {
 export function estimateInteractions(issue, comments) {
     let interactionScore = 0;
     // Base score on number of comments
-    const commentCount = comments?.nodes?.length || 0;
+    const commentCount = comments?.length || 0;
     interactionScore += Math.min(50, commentCount * 10); // Cap at 50 points from comments
-    // Check for external interactions (non-employee comments)
+    // Check for external interactions (non-automated comments)
     let externalInteractions = 0;
-    if (comments?.nodes) {
-        for (const comment of comments.nodes) {
-            const userHandle = comment.user?.handle;
-            if (userHandle && !EMPLOYEE_ALIASES.includes(userHandle)) {
-                externalInteractions++;
+    let uniqueExternalUsers = new Set();
+    if (comments) {
+        for (const comment of comments) {
+            // Skip null users (automated comments)
+            if (!comment.user)
+                continue;
+            // Skip automated comments from Linear GitHub sync
+            if (comment.body.includes('This comment thread is synced to a corresponding [GitHub issue]')) {
+                continue;
             }
+            // Skip other automated comments or system users
+            if (comment.body.includes('automatically moved') ||
+                (comment.user.email && comment.user.email.includes('linear.app'))) {
+                continue;
+            }
+            // Use email or name as identifier
+            const userIdentifier = comment.user.email || comment.user.name || comment.user.id;
+            // Count unique external users for higher weighting
+            if (userIdentifier) {
+                uniqueExternalUsers.add(userIdentifier);
+            }
+            externalInteractions++;
         }
     }
     // External interactions are weighted more heavily
     interactionScore += Math.min(50, externalInteractions * 15); // Cap at 50 points from external interactions
+    // Bonus points for multiple unique external users (indicates broader interest)
+    if (uniqueExternalUsers.size > 1) {
+        interactionScore += Math.min(20, uniqueExternalUsers.size * 10);
+    }
     // Cap the total interaction score at 100
     return Math.min(100, interactionScore);
 }
 /**
  * Estimate complexity based on issue description, labels, and other factors
  */
-export async function estimateComplexity(issue) {
+export function estimateComplexity(issue) {
     const description = issue.description || '';
     const title = issue.title || '';
-    // Get labels
-    const labelsConnection = await issue.labels();
-    const labels = labelsConnection.nodes || [];
+    // Get labels from the issue
+    const labels = issue.labels || [];
     // Check for complexity labels
     for (const label of labels) {
-        if (label.name.includes('Complexity:High') || label.name.includes('Complex')) {
+        if (label.name.includes('Complexity:Hard')) {
             return 'High';
         }
-        if (label.name.includes('Complexity:Low') || label.name.includes('Simple')) {
+        if (label.name.includes('Complexity:Low')) {
             return 'Low';
         }
     }

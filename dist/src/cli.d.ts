@@ -14,6 +14,8 @@ export interface CommandLineArgs {
     showScoringCacheInfo: boolean;
     showHelp: boolean;
     showEnvHelp: boolean;
+    refreshIssuesOnly: boolean;
+    compareScores: boolean;
 }
 /**
  * Parse command line arguments

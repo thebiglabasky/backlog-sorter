@@ -45,6 +45,71 @@ async function main() {
             process.exit(0);
         }
     }
+    // Handle compare-scores command - clear issues cache but keep scoring cache for comparison
+    if (args.compareScores) {
+        try {
+            // Load previous scoring results for comparison
+            const previousScoredIssues = await loadCachedScoredIssues(true);
+            if (!previousScoredIssues || previousScoredIssues.length === 0) {
+                console.log(chalk.yellow('No previous scoring results found for comparison.'));
+                console.log(chalk.gray('Run with --score-only first to generate scoring data.'));
+                process.exit(1);
+            }
+            console.log(chalk.blue(`Loaded previous scoring results (${previousScoredIssues.length} issues) for comparison.`));
+            // Clear the issues cache to force refetching from Linear
+            await clearIssuesCache();
+            console.log(chalk.blue('Issues cache cleared. Will fetch fresh issue data from Linear.'));
+            // Continue with normal execution to fetch and score issues
+            console.log(chalk.gray('Proceeding to fetch and score issues...'));
+            // Set flags to ensure we use the scoring cache for comparison
+            args.forceRefresh = true; // Force refresh from API
+            args.noScoringCache = true; // Don't update the scoring cache
+            args.scoreOnly = true; // Only score, don't update in Linear
+        }
+        catch (error) {
+            console.error(chalk.red('Error preparing for score comparison:'));
+            if (error instanceof Error) {
+                console.error(chalk.red(`  - ${error.message}`));
+            }
+            else {
+                console.error(chalk.red(`  - ${String(error)}`));
+            }
+            process.exit(1);
+        }
+    }
+    // Handle refresh-issues-only command
+    if (args.refreshIssuesOnly) {
+        try {
+            // Clear the issues cache first
+            await clearIssuesCache();
+            console.log(chalk.blue('Issues cache cleared.'));
+            // Load configuration
+            const config = loadConfig();
+            const apiKey = getApiKey();
+            const client = new LinearClient({ apiKey });
+            // Create the issue fetcher with force refresh
+            const issueFetcher = new IssueFetcher(client, config, true, // Use cache for saving
+            true // Force refresh from API
+            );
+            // Fetch issues
+            console.log(chalk.blue('Fetching issues from Linear API...'));
+            const issues = await issueFetcher.fetchIssues();
+            console.log(chalk.green(`Successfully fetched and cached ${issues.length} issues.`));
+            console.log(chalk.gray('Issues have been cached but not scored.'));
+            console.log(chalk.gray('To score these issues, run with --score-only.'));
+        }
+        catch (error) {
+            console.error(chalk.red('Error refreshing issues:'));
+            if (error instanceof Error) {
+                console.error(chalk.red(`  - ${error.message}`));
+            }
+            else {
+                console.error(chalk.red(`  - ${String(error)}`));
+            }
+            process.exit(1);
+        }
+        process.exit(0);
+    }
     if (args.showCacheInfo) {
         const metadata = await getCacheMetadata();
         if (metadata) {
@@ -105,7 +170,7 @@ async function main() {
         // Load previous scoring results if we're doing a score-only run with no scoring cache
         // This allows us to compare the changes between runs
         let previousScoredIssues = null;
-        if (args.scoreOnly && args.noScoringCache) {
+        if ((args.scoreOnly && args.noScoringCache) || args.compareScores) {
             previousScoredIssues = await loadCachedScoredIssues(true);
             if (previousScoredIssues) {
                 console.log(chalk.blue(`Loaded previous scoring results (${previousScoredIssues.length} issues) for comparison.`));
@@ -143,7 +208,7 @@ async function main() {
         // Score issues
         const sortedIssues = await issueScorer.scoreIssues(issues);
         // Compare with previous scoring if available
-        if (previousScoredIssues && args.scoreOnly && args.noScoringCache) {
+        if (previousScoredIssues && (args.scoreOnly && args.noScoringCache || args.compareScores)) {
             const changes = compareScoring(previousScoredIssues, sortedIssues);
             displayRankingChanges(changes);
             displaySortedIssuesWithChanges(sortedIssues, changes);

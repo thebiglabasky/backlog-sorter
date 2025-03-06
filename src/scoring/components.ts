@@ -1,4 +1,3 @@
-import { EMPLOYEE_ALIASES } from '../config.js';
 import { EnrichedIssue } from '../issue-fetcher.js';
 
 /**
@@ -84,7 +83,7 @@ export function estimateInteractions(issue: EnrichedIssue, comments: any): numbe
   const commentCount = comments?.length || 0;
   interactionScore += Math.min(50, commentCount * 10); // Cap at 50 points from comments
 
-  // Check for external interactions (non-employee comments)
+  // Check for external interactions (non-automated comments)
   let externalInteractions = 0;
   let uniqueExternalUsers = new Set();
 
@@ -93,25 +92,19 @@ export function estimateInteractions(issue: EnrichedIssue, comments: any): numbe
       // Skip null users (automated comments)
       if (!comment.user) continue;
 
-      // Linear API doesn't have 'handle', use email or name for identification
-      const userEmail = comment.user.email;
-      const userName = comment.user.name;
-
-      // Use email or name as identifier
-      const userIdentifier = userEmail || userName;
-
-      // Check if user is an employee (using email)
-      const isEmployee = userEmail && EMPLOYEE_ALIASES.includes(userEmail);
-
-      // Skip internal employee comments
-      if (isEmployee) continue;
-
-      // Skip automated comments or system users
-      if (comment.body.includes('This comment thread is synced') ||
-          comment.body.includes('automatically moved') ||
-          (userEmail && userEmail.includes('linear.app'))) {
+      // Skip automated comments from Linear GitHub sync
+      if (comment.body.includes('This comment thread is synced to a corresponding [GitHub issue]')) {
         continue;
       }
+
+      // Skip other automated comments or system users
+      if (comment.body.includes('automatically moved') ||
+          (comment.user.email && comment.user.email.includes('linear.app'))) {
+        continue;
+      }
+
+      // Use email or name as identifier
+      const userIdentifier = comment.user.email || comment.user.name || comment.user.id;
 
       // Count unique external users for higher weighting
       if (userIdentifier) {

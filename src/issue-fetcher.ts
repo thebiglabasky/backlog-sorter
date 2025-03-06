@@ -142,6 +142,7 @@ export class IssueFetcher {
       const result = await graphQLClient.rawRequest(`
         query BacklogIssues($teamId: ID!, $stateId: ID!) {
           issues(
+            first: 200,
             filter: {
               team: { id: { eq: $teamId } },
               state: { id: { eq: $stateId } }

@@ -35,9 +35,9 @@ export class IssueScorer {
                 const issue = issues[i];
                 spinner.text = chalk.blue(`Scoring issue ${i + 1}/${issues.length}: ${issue.identifier}`);
                 // Get comments for interaction analysis
-                const comments = await issue.comments();
+                const comments = issue.comments || [];
                 // Calculate issue score
-                const score = await calculateIssueScore(issue, this.config.relevanceKeywords, comments);
+                const score = calculateIssueScore(issue, this.config.relevanceKeywords, comments);
                 scoredIssues.push(score);
             }
             // Sort issues by score

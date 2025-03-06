@@ -1,9 +1,9 @@
-import { Issue } from '@linear/sdk';
+import { EnrichedIssue } from './issue-fetcher.js';
 /**
  * Represents a scored issue with all its scoring components
  */
 export interface IssueScore {
-    issue: Issue;
+    issue: EnrichedIssue;
     projectRelevance: number;
     valueScore: number;
     complexityScore: number;

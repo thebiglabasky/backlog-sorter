@@ -19,38 +19,40 @@ export function parseArgs() {
         showCacheInfo: args.includes("--cache-info"),
         showScoringCacheInfo: args.includes("--scoring-cache-info"),
         showHelp: args.includes("--help") || args.includes("-h"),
-        showEnvHelp: args.includes("--env-help")
+        showEnvHelp: args.includes("--env-help"),
+        refreshIssuesOnly: args.includes("--refresh-issues-only"),
+        compareScores: args.includes("--compare-scores")
     };
 }
 /**
  * Display help message
  */
 export function displayHelp() {
-    console.log(chalk.yellow("Usage:"));
-    console.log(chalk.gray("  node dist/main.js [options]"));
-    console.log(chalk.yellow("\nOptions:"));
-    console.log(chalk.gray("  --update              Update the order of issues in Linear"));
-    console.log(chalk.gray("  --score-only          Recompute scores using the issues cache but don't update Linear"));
-    console.log(chalk.gray("  --show-scores         Show the scored issues from the cache without recomputing"));
-    console.log(chalk.gray("  --stats               Show detailed statistics about the scoring"));
-    console.log(chalk.gray("  --no-cache            Disable all caching (both issues and scoring)"));
-    console.log(chalk.gray("  --no-scoring-cache    Disable scoring cache but use issues cache"));
-    console.log(chalk.gray("  --refresh             Force refresh from API"));
-    console.log(chalk.gray("  --clear-cache         Clear all caches"));
-    console.log(chalk.gray("  --clear-scoring-cache Clear only the scoring cache"));
-    console.log(chalk.gray("  --clear-issues-cache  Clear only the issues cache"));
-    console.log(chalk.gray("  --cache-info          Show information about the issues cache"));
-    console.log(chalk.gray("  --scoring-cache-info  Show information about the scoring cache"));
-    console.log(chalk.gray("  --debug               Show debug information"));
-    console.log(chalk.gray("  --env-help            Show environment variable configuration help"));
-    console.log(chalk.gray("  --help, -h            Show this help message"));
-    console.log(chalk.yellow("\nCache Strategy:"));
-    console.log(chalk.gray("  1. First checks for a valid scoring cache"));
-    console.log(chalk.gray("  2. If no scoring cache, checks for a valid issues cache"));
-    console.log(chalk.gray("  3. If no issues cache, fetches from Linear API"));
-    console.log(chalk.yellow("\nComparing Scoring Changes:"));
-    console.log(chalk.gray("  Use --score-only --no-scoring-cache to compare new scores with previous scoring results"));
-    console.log(chalk.gray("  This will show which issues moved up or down in priority based on your Linear changes"));
+    console.log(chalk.yellow("\nUsage Options:"));
+    console.log(chalk.gray("  --update               Update issue order in Linear based on scoring"));
+    console.log(chalk.gray("  --score-only           Only score issues, don't update in Linear"));
+    console.log(chalk.gray("  --show-scores          Show cached scores without recomputing"));
+    console.log(chalk.gray("  --stats                Show detailed statistics about scoring"));
+    console.log(chalk.gray("  --no-cache             Don't use or update the issues cache"));
+    console.log(chalk.gray("  --no-scoring-cache     Don't use or update the scoring cache"));
+    console.log(chalk.gray("  --refresh              Force refresh from API even if cache is valid"));
+    console.log(chalk.gray("  --clear-cache          Clear all caches"));
+    console.log(chalk.gray("  --clear-scoring-cache  Clear only the scoring cache"));
+    console.log(chalk.gray("  --clear-issues-cache   Clear only the issues cache"));
+    console.log(chalk.gray("  --refresh-issues-only  Refresh issues from API without scoring"));
+    console.log(chalk.gray("  --compare-scores       Refresh issues but keep scoring cache for comparison"));
+    console.log(chalk.gray("  --debug                Show detailed scoring breakdown"));
+    console.log(chalk.gray("  --cache-info           Show information about the issues cache"));
+    console.log(chalk.gray("  --scoring-cache-info   Show information about the scoring cache"));
+    console.log(chalk.gray("  --help, -h             Show this help message"));
+    console.log(chalk.gray("  --env-help             Show environment variable documentation"));
+    console.log(chalk.yellow("\nExamples:"));
+    console.log(chalk.gray("  # Score issues and update in Linear"));
+    console.log(chalk.gray("  npx linear-backlog-prioritizer --update"));
+    console.log(chalk.gray("  # Score issues without updating Linear"));
+    console.log(chalk.gray("  npx linear-backlog-prioritizer --score-only"));
+    console.log(chalk.gray("  # Refresh issues and compare with previous scores"));
+    console.log(chalk.gray("  npx linear-backlog-prioritizer --compare-scores"));
 }
 /**
  * Display environment variable help

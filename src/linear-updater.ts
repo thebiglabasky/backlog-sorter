@@ -27,8 +27,8 @@ export class LinearUpdater {
       // Lower sortOrder values appear higher in the list
       for (let i = 0; i < sortedIssues.length; i++) {
         const issue = sortedIssues[i].issue;
-        // Use a large enough step between values to allow for future insertions
-        const sortOrder = (i + 1) * 100;
+        // Set sortOrder to start from 1 and increment by 1 for each issue
+        const sortOrder = i + 1;
 
         spinner.text = chalk.blue(`Updating issues (${progress}/${total}): Setting ${issue.identifier} sort order to ${sortOrder}`);
 

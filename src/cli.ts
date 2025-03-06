@@ -1,6 +1,15 @@
 import chalk from 'chalk';
 
 export interface CommandLineArgs {
+  // Main commands
+  score: boolean;
+  compare: boolean;
+  updateLinear: boolean;
+  reset: boolean;
+  cacheDetails: boolean;
+  scoreDetails: boolean;
+
+  // Legacy commands (to be deprecated)
   shouldUpdateOrder: boolean;
   scoreOnly: boolean;
   showScores: boolean;
@@ -17,6 +26,7 @@ export interface CommandLineArgs {
   showHelp: boolean;
   showEnvHelp: boolean;
   refreshIssuesOnly: boolean;
+  compareScores: boolean;
 }
 
 /**
@@ -26,6 +36,15 @@ export function parseArgs(): CommandLineArgs {
   const args = process.argv.slice(2);
 
   return {
+    // Main commands
+    score: args.includes("score"),
+    compare: args.includes("compare"),
+    updateLinear: args.includes("update-linear"),
+    reset: args.includes("reset"),
+    cacheDetails: args.includes("cache-details"),
+    scoreDetails: args.includes("score-details"),
+
+    // Legacy commands (to be deprecated)
     shouldUpdateOrder: args.includes("--update"),
     scoreOnly: args.includes("--score-only"),
     showScores: args.includes("--show-scores"),
@@ -39,9 +58,10 @@ export function parseArgs(): CommandLineArgs {
     showDebug: args.includes("--debug"),
     showCacheInfo: args.includes("--cache-info"),
     showScoringCacheInfo: args.includes("--scoring-cache-info"),
-    showHelp: args.includes("--help") || args.includes("-h"),
+    showHelp: args.includes("--help") || args.includes("-h") || args.includes("help"),
     showEnvHelp: args.includes("--env-help"),
-    refreshIssuesOnly: args.includes("--refresh-issues-only")
+    refreshIssuesOnly: args.includes("--refresh-issues-only"),
+    compareScores: args.includes("--compare-scores")
   };
 }
 
@@ -49,32 +69,26 @@ export function parseArgs(): CommandLineArgs {
  * Display help message
  */
 export function displayHelp(): void {
-  console.log(chalk.yellow("Usage:"));
-  console.log(chalk.gray("  node dist/main.js [options]"));
-  console.log(chalk.yellow("\nOptions:"));
-  console.log(chalk.gray("  --update              Update the order of issues in Linear"));
-  console.log(chalk.gray("  --score-only          Recompute scores using the issues cache but don't update Linear"));
-  console.log(chalk.gray("  --show-scores         Show the scored issues from the cache without recomputing"));
-  console.log(chalk.gray("  --stats               Show detailed statistics about the scoring"));
-  console.log(chalk.gray("  --no-cache            Disable all caching (both issues and scoring)"));
-  console.log(chalk.gray("  --no-scoring-cache    Disable scoring cache but use issues cache"));
-  console.log(chalk.gray("  --refresh             Force refresh from API"));
-  console.log(chalk.gray("  --refresh-issues-only Clear issues cache and fetch issues without scoring them"));
-  console.log(chalk.gray("  --clear-cache         Clear all caches"));
-  console.log(chalk.gray("  --clear-scoring-cache Clear only the scoring cache"));
-  console.log(chalk.gray("  --clear-issues-cache  Clear only the issues cache"));
-  console.log(chalk.gray("  --cache-info          Show information about the issues cache"));
-  console.log(chalk.gray("  --scoring-cache-info  Show information about the scoring cache"));
-  console.log(chalk.gray("  --debug               Show debug information"));
-  console.log(chalk.gray("  --env-help            Show environment variable configuration help"));
-  console.log(chalk.gray("  --help, -h            Show this help message"));
-  console.log(chalk.yellow("\nCache Strategy:"));
-  console.log(chalk.gray("  1. First checks for a valid scoring cache"));
-  console.log(chalk.gray("  2. If no scoring cache, checks for a valid issues cache"));
-  console.log(chalk.gray("  3. If no issues cache, fetches from Linear API"));
-  console.log(chalk.yellow("\nComparing Scoring Changes:"));
-  console.log(chalk.gray("  Use --score-only --no-scoring-cache to compare new scores with previous scoring results"));
-  console.log(chalk.gray("  This will show which issues moved up or down in priority based on your Linear changes"));
+  console.log(chalk.yellow("\nCommands:"));
+  console.log(chalk.gray("  score           Fetch issues if needed, compute scores, and display results"));
+  console.log(chalk.gray("  compare         Compare new scores with previous scoring results"));
+  console.log(chalk.gray("  update-linear   Update issue order in Linear based on scoring"));
+  console.log(chalk.gray("  reset           Clear all caches"));
+  console.log(chalk.gray("  cache-details   Show detailed information about caches"));
+  console.log(chalk.gray("  score-details   Show detailed information about scores"));
+  console.log(chalk.gray("  help            Show this help message"));
+
+  console.log(chalk.yellow("\nExamples:"));
+  console.log(chalk.gray("  # Score issues"));
+  console.log(chalk.gray("  npx linear-backlog-prioritizer score"));
+  console.log(chalk.gray("  # Compare new scores with previous scores"));
+  console.log(chalk.gray("  npx linear-backlog-prioritizer compare"));
+  console.log(chalk.gray("  # Update issue order in Linear"));
+  console.log(chalk.gray("  npx linear-backlog-prioritizer update-linear"));
+
+  console.log(chalk.yellow("\nLegacy Options (Deprecated):"));
+  console.log(chalk.gray("  Use the new commands above instead of these legacy options."));
+  console.log(chalk.gray("  These will be removed in a future version."));
 }
 
 /**
@@ -95,10 +109,6 @@ export function displayEnvHelp(): void {
   console.log(chalk.gray("    LINEAR_API_KEY=lin_api_xxxxxxxxxxxx"));
   console.log(chalk.gray("    LINEAR_TEAM_ID=team_xxxxxxxx"));
   console.log(chalk.gray("    LINEAR_BACKLOG_STATE_ID=state_xxxxxxxx"));
-  console.log(chalk.gray("    LINEAR_TARGET_INITIATIVE=Q3 Goals"));
-  console.log(chalk.gray("    LINEAR_TARGET_PROJECT=Performance Improvements"));
-  console.log(chalk.gray("    LINEAR_RELEVANCE_KEYWORDS=performance,speed,optimization,latency"));
-  console.log(chalk.gray("    LINEAR_CACHE_TTL_HOURS=48"));
-  console.log(chalk.gray("\nTo find IDs, run the find-ids.ts script:"));
-  console.log(chalk.gray("  npm run find-ids"));
+  console.log(chalk.gray("    LINEAR_RELEVANCE_KEYWORDS=important,critical,urgent"));
+  console.log(chalk.gray("    LINEAR_CACHE_TTL_HOURS=12"));
 }
