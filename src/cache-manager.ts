@@ -1,8 +1,8 @@
-import { IssueConnection } from '@linear/sdk';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 import ora from 'ora';
 import path from 'path';
+import { EnrichedIssue } from './issue-fetcher.js';
 
 // Define the cache directory
 const CACHE_DIR = path.join(process.cwd(), '.cache');
@@ -59,119 +59,37 @@ async function safeAwait<T>(value: T | Promise<T>): Promise<T> {
 }
 
 /**
- * Saves issues to the cache
+ * Cache issues to disk
  * @param issues The issues to cache
  * @param teamId The team ID
  * @param backlogStateId The backlog state ID
  */
-export async function cacheIssues(issues: IssueConnection, teamId: string, backlogStateId: string): Promise<void> {
+export async function cacheIssues(
+  issues: EnrichedIssue[],
+  teamId: string,
+  backlogStateId: string
+): Promise<void> {
   const spinner = ora({
-    text: chalk.blue('Saving issues to cache...'),
+    text: chalk.blue('Caching issues...'),
     color: 'blue'
   }).start();
 
   try {
     await ensureCacheDir();
 
-    // Serialize the issues
-    // We need to extract the data we need since the SDK objects aren't directly serializable
-    const serializedIssues = await Promise.all(issues.nodes.map(async (issue) => {
-      // Create a base issue object with properties we know exist
-      const serializedIssue: any = {
-        id: issue.id,
-        identifier: issue.identifier,
-        title: issue.title,
-        description: issue.description,
-        estimate: issue.estimate,
-        priority: issue.priority,
-        createdAt: issue.createdAt,
-        updatedAt: issue.updatedAt,
-        labels: [],
-        comments: [],
-        project: null
-      };
-
-      // Add labels if they exist
-      try {
-        if (issue.labels) {
-          // Await the labels connection
-          const labelsConnection = await issue.labels();
-          if (labelsConnection && labelsConnection.nodes) {
-            serializedIssue.labels = await Promise.all(labelsConnection.nodes.map(async (label) => ({
-              id: label.id,
-              name: label.name,
-              color: label.color
-            })));
-          }
-        }
-      } catch (error) {
-        console.error(chalk.yellow('Error processing labels:'), error);
-      }
-
-      // Add comments if they exist
-      try {
-        if (issue.comments) {
-          // Await the comments connection
-          const commentsConnection = await issue.comments();
-          if (commentsConnection && commentsConnection.nodes) {
-            serializedIssue.comments = await Promise.all(commentsConnection.nodes.map(async (comment) => {
-              const commentObj: any = {
-                id: comment.id,
-                body: comment.body,
-                user: null
-              };
-
-              // Add user if it exists
-              if (comment.user) {
-                const user = await safeAwait(comment.user);
-                if (user) {
-                  commentObj.user = {
-                    id: user.id,
-                    name: user.name,
-                    email: user.email
-                  };
-                }
-              }
-
-              return commentObj;
-            }));
-          }
-        }
-      } catch (error) {
-        console.error(chalk.yellow('Error processing comments:'), error);
-      }
-
-      // Add project if it exists
-      try {
-        if (issue.project) {
-          const project = await safeAwait(issue.project);
-          if (project) {
-            serializedIssue.project = {
-              id: project.id,
-              name: project.name
-            };
-          }
-        }
-      } catch (error) {
-        console.error(chalk.yellow('Error processing project:'), error);
-      }
-
-      return serializedIssue;
-    }));
-
     // Save the serialized issues
-    await fs.writeJson(ISSUES_CACHE_FILE, serializedIssues, { spaces: 2 });
+    await fs.writeJson(ISSUES_CACHE_FILE, issues, { spaces: 2 });
 
     // Save metadata
     const metadata: CacheMetadata = {
       lastUpdated: new Date().toISOString(),
       teamId,
       backlogStateId,
-      issueCount: issues.nodes.length
+      issueCount: issues.length
     };
     await fs.writeJson(CACHE_METADATA_FILE, metadata, { spaces: 2 });
 
-    spinner.succeed(chalk.green(`Successfully cached ${issues.nodes.length} issues`));
+    spinner.succeed(chalk.green(`Successfully cached ${issues.length} issues`));
   } catch (error) {
     spinner.fail(chalk.red('Failed to cache issues'));
     console.error(chalk.red('Error details:'));
@@ -479,23 +397,54 @@ export async function getScoringCacheMetadata(): Promise<ScoringCacheMetadata | 
 }
 
 /**
- * Loads scored issues from the cache
- * @returns The cached scored issues or null if not available
+ * Loads cached scored issues from the cache
+ * @param ignoreExpiry Optional flag to load the cache even if it's expired (default: false)
+ * @returns The cached scored issues or null if not found
  */
-export async function loadCachedScoredIssues(): Promise<any[] | null> {
+export async function loadCachedScoredIssues(ignoreExpiry: boolean = false): Promise<any[] | null> {
   const spinner = ora({
     text: chalk.blue('Loading scored issues from cache...'),
     color: 'blue'
   }).start();
 
   try {
-    if (await fs.pathExists(SCORING_CACHE_FILE)) {
-      const scoredIssues = await fs.readJson(SCORING_CACHE_FILE);
-      spinner.succeed(chalk.green(`Successfully loaded ${scoredIssues.length} scored issues from cache`));
-      return scoredIssues;
+    // Check if the cache file exists
+    if (!await fs.pathExists(SCORING_CACHE_FILE)) {
+      spinner.fail(chalk.yellow('No cached scored issues found'));
+      return null;
     }
-    spinner.fail(chalk.yellow('No cached scored issues found'));
-    return null;
+
+    // Load the cached issues
+    const cachedScoredIssues = await fs.readJson(SCORING_CACHE_FILE);
+
+    // If we're ignoring expiry, return the cached issues regardless of validity
+    if (ignoreExpiry) {
+      spinner.succeed(chalk.green(`Successfully loaded ${cachedScoredIssues.length} scored issues from cache (ignoring expiry)`));
+      return cachedScoredIssues;
+    }
+
+    // Check if the cache is valid
+    const metadata = await getScoringCacheMetadata();
+    if (!metadata) {
+      spinner.fail(chalk.yellow('No scoring cache metadata found'));
+      return null;
+    }
+
+    // Get cache TTL from environment variables (default to 24 hours)
+    const cacheTtlHours = parseInt(process.env.LINEAR_CACHE_TTL_HOURS || '24', 10);
+
+    // Check if the cache is still valid
+    const lastUpdated = new Date(metadata.lastUpdated);
+    const now = new Date();
+    const cacheAgeHours = (now.getTime() - lastUpdated.getTime()) / (1000 * 60 * 60);
+
+    if (cacheAgeHours > cacheTtlHours) {
+      spinner.fail(chalk.yellow(`Scoring cache expired (${cacheAgeHours.toFixed(1)} hours old, TTL: ${cacheTtlHours} hours)`));
+      return null;
+    }
+
+    spinner.succeed(chalk.green(`Successfully loaded ${cachedScoredIssues.length} scored issues from cache`));
+    return cachedScoredIssues;
   } catch (error) {
     spinner.fail(chalk.red('Failed to load scored issues from cache'));
     console.error(chalk.red('Error details:'));

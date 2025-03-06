@@ -1,30 +1,23 @@
 # Linear Backlog Prioritizer
 
-A tool to prioritize and sort Linear backlog issues based on various criteria.
+A tool to automatically prioritize and sort your Linear backlog based on various factors including relevance, value, and complexity.
 
 ## Features
 
-- Prioritizes backlog issues based on relevance, value, and complexity
-- Caches API data locally to reduce API calls and improve performance
-- Provides detailed scoring and analysis of issues
-- Updates issue sort order in Linear to match prioritization
+- Automatically scores and ranks backlog issues
+- Updates issue order in Linear
+- Caches results to avoid unnecessary API calls
+- Compares scoring changes between runs
+- Detailed statistics and analysis
 
 ## Installation
 
-```bash
-# Clone the repository
-git clone <repository-url>
-cd backlog-sorter
+1. Clone this repository
+2. Install dependencies: `npm install` or `pnpm install`
+3. Create a `.env` file with your Linear API key and other configuration (see below)
+4. Run the tool: `npm start`
 
-# Install dependencies
-pnpm install
-
-# Set up environment variables
-cp .env.example .env
-# Edit .env to add your Linear API key and other required values
-```
-
-## Environment Variables
+## Configuration
 
 Create a `.env` file with the following variables:
 
@@ -32,120 +25,55 @@ Create a `.env` file with the following variables:
 LINEAR_API_KEY=lin_api_xxxxxxxxxxxx
 LINEAR_TEAM_ID=team_xxxxxxxx
 LINEAR_BACKLOG_STATE_ID=state_xxxxxxxx
-LINEAR_TARGET_INITIATIVE=Q3 Goals  # Optional
-LINEAR_TARGET_PROJECT=Performance Improvements  # Optional
-LINEAR_RELEVANCE_KEYWORDS=performance,speed,optimization,latency  # Optional
-LINEAR_CACHE_TTL_HOURS=24  # Optional, defaults to 24
+LINEAR_TARGET_INITIATIVE=Q3 Goals
+LINEAR_TARGET_PROJECT=Performance Improvements
+LINEAR_RELEVANCE_KEYWORDS=performance,speed,optimization,latency
+LINEAR_CACHE_TTL_HOURS=48
+LINEAR_EMPLOYEE_GITHUB_ALIASES=user1,user2,user3
 ```
 
-To find the required IDs, you can run:
+To find your team ID and backlog state ID, run:
 
-```bash
-pnpm run find-ids
+```
+npm run find-ids
 ```
 
 ## Usage
 
-### Basic Usage
-
-```bash
-# Run the prioritizer (scores issues but doesn't update Linear)
-pnpm start
-
-# Score issues and update their sort order in Linear
-pnpm run update
-
-# Run with debug information
-pnpm start -- --debug
-
-# Only score issues without updating Linear
-pnpm run score-only
+```
+npm start                   # Score issues without updating Linear
+npm run update              # Score issues and update order in Linear
+npm run refresh             # Force refresh from API
+npm run score-only          # Recompute scores using the issues cache
+npm run compare-scores      # Compare new scores with previous scoring results
+npm run show-scores         # Show cached scores without recomputing
+npm run stats               # Show detailed statistics
+npm run options             # Show all available options
 ```
 
-### Cache Management
+## Project Structure
 
-The tool caches data from the Linear API to improve performance and reduce API calls. By default, the cache is valid for 24 hours.
+The project is organized into the following modules:
 
-```bash
-# Show cache information
-pnpm run cache-info
+- `src/config.ts` - Configuration parsing
+- `src/cli.ts` - Command invocation management
+- `src/issue-fetcher.ts` - Issues fetching including caching
+- `src/scoring/index.ts` - Main scoring module
+- `src/scoring/components.ts` - Individual scoring components
+- `src/scoring/calculator.ts` - Overall score computation
+- `src/diff.ts` - Diffing algorithm
+- `src/presentation.ts` - Results presentation
+- `src/linear-updater.ts` - Updating Linear's sortOrder
+- `src/index.ts` - Main entry point
 
-# Force refresh the cache
-pnpm run refresh
+## Scoring Factors
 
-# Clear all cache
-pnpm run clear-cache
+Issues are scored based on:
 
-# Clear only the scoring cache
-pnpm run clear-scoring-cache
-
-# Clear only the issues cache
-pnpm run clear-issues-cache
-```
-
-### Command Line Options
-
-- `--update`: Update issue sort order in Linear
-- `--no-cache`: Don't use cache, fetch directly from API
-- `--refresh`: Force refresh the cache
-- `--clear-cache`: Clear all cache
-- `--clear-scoring-cache`: Clear only the scoring cache
-- `--clear-issues-cache`: Clear only the issues cache
-- `--cache-info`: Show cache information
-- `--debug`: Show debug information
-- `--score-only`: Only score issues, don't update Linear
-- `--help`: Show help information
-
-## How It Works
-
-1. The tool fetches issues from the Linear API or loads them from cache
-2. Each issue is scored based on:
-   - Project relevance (matching keywords, initiative, project)
-   - Value score (priority, recency, interactions)
-   - Complexity score (estimated effort)
-3. Issues are sorted by their final score
-4. The sorted issues are displayed with their scores
-5. When using the `--update` flag, the tool updates the `sortOrder` field of each issue in Linear to match the prioritization
-
-## Scoring Details
-
-Issues are scored based on multiple factors:
-
-- **Project Relevance**: How relevant the issue is to your current priorities
-  - Matches with relevance keywords
-  - Belongs to target initiative or project
-
-- **Value Score**: The potential value of implementing the issue
-  - Priority level in Linear
-  - Recency (recently created issues score higher)
-  - Interactions (comments, reactions)
-
-- **Complexity Score**: The estimated effort to implement
-  - Based on issue description length, comments, and other factors
-  - Lower complexity issues score higher for faster wins
-
-## Cache Structure
-
-The cache is stored in the `.cache` directory:
-
-- `issues.json`: Cached issue data
-- `scoring.json`: Cached scoring data
-- `metadata.json`: Cache metadata (last updated, team ID, etc.)
-
-The cache is automatically refreshed when:
-- It's older than the configured TTL (default: 24 hours)
-- The team ID or backlog state ID changes
-- The `--refresh` flag is used
-
-## Troubleshooting
-
-If you encounter issues:
-
-1. Make sure your Linear API key has sufficient permissions
-2. Verify the team ID and backlog state ID are correct
-3. Try clearing the cache with `pnpm run clear-cache`
-4. Run with `--debug` flag for more detailed logs
+1. **Project Relevance (50%)** - How relevant the issue is to your project based on keywords
+2. **Value Score (30%)** - Combination of priority, recency, and interactions
+3. **Complexity Score (20%)** - Estimated complexity (simpler issues score higher)
 
 ## License
 
-[MIT](LICENSE)
+ISC
