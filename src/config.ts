@@ -12,6 +12,14 @@ export interface PrioritizerConfig {
   targetProject?: string;
   relevanceKeywords: string[];
   cacheTtlHours: number;
+  // Scoring weights (must sum to 1)
+  weightValue: number;
+  weightRelevance: number;
+  weightComplexity: number;
+  // Value components weights (must sum to 1)
+  weightPriority: number;
+  weightRecency: number;
+  weightInteractions: number;
 }
 
 export interface PrioritizerOptions {
@@ -36,6 +44,12 @@ export function loadConfig(): PrioritizerConfig {
   const targetProject = process.env.LINEAR_TARGET_PROJECT;
   const relevanceKeywordsStr = process.env.LINEAR_RELEVANCE_KEYWORDS || '';
   const relevanceKeywords = relevanceKeywordsStr.split(',').map(k => k.trim()).filter(k => k.length > 0);
+  const weightValue = parseFloat(process.env.WEIGHT_VALUE || '0.2');
+  const weightRelevance = parseFloat(process.env.WEIGHT_RELEVANCE || '0.5');
+  const weightComplexity = parseFloat(process.env.WEIGHT_COMPLEXITY || '0.3');
+  const weightPriority = parseFloat(process.env.WEIGHT_PRIORITY || '0.5');
+  const weightRecency = parseFloat(process.env.WEIGHT_RECENCY || '0.3');
+  const weightInteractions = parseFloat(process.env.WEIGHT_INTERACTIONS || '0.2');
 
   // Get cache TTL from environment variables (default to 24 hours)
   const cacheTtlHours = parseInt(process.env.LINEAR_CACHE_TTL_HOURS || '24', 10);
@@ -56,11 +70,14 @@ export function loadConfig(): PrioritizerConfig {
     backlogStateId,
     targetInitiative,
     targetProject,
-    relevanceKeywords: relevanceKeywords.length > 0 ? relevanceKeywords : [
-      'metadata', 'fingerprint', 'scan', 'sync', 'semantic type', 'database type',
-      'binning', 'casting', 'field values'
-    ],
-    cacheTtlHours
+    relevanceKeywords,
+    cacheTtlHours,
+    weightValue,
+    weightRelevance,
+    weightComplexity,
+    weightPriority,
+    weightRecency,
+    weightInteractions
   };
 }
 

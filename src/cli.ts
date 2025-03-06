@@ -8,25 +8,9 @@ export interface CommandLineArgs {
   reset: boolean;
   cacheDetails: boolean;
   scoreDetails: boolean;
-
-  // Legacy commands (to be deprecated)
-  shouldUpdateOrder: boolean;
-  scoreOnly: boolean;
-  showScores: boolean;
-  showStats: boolean;
-  noCache: boolean;
-  noScoringCache: boolean;
-  forceRefresh: boolean;
-  clearCacheFlag: boolean;
-  clearScoringCacheFlag: boolean;
-  clearIssuesCacheFlag: boolean;
-  showDebug: boolean;
-  showCacheInfo: boolean;
-  showScoringCacheInfo: boolean;
   showHelp: boolean;
   showEnvHelp: boolean;
-  refreshIssuesOnly: boolean;
-  compareScores: boolean;
+  noCache: boolean;
 }
 
 /**
@@ -43,25 +27,9 @@ export function parseArgs(): CommandLineArgs {
     reset: args.includes("reset"),
     cacheDetails: args.includes("cache-details"),
     scoreDetails: args.includes("score-details"),
-
-    // Legacy commands (to be deprecated)
-    shouldUpdateOrder: args.includes("--update"),
-    scoreOnly: args.includes("--score-only"),
-    showScores: args.includes("--show-scores"),
-    showStats: args.includes("--stats"),
     noCache: args.includes("--no-cache"),
-    noScoringCache: args.includes("--no-scoring-cache"),
-    forceRefresh: args.includes("--refresh"),
-    clearCacheFlag: args.includes("--clear-cache"),
-    clearScoringCacheFlag: args.includes("--clear-scoring-cache"),
-    clearIssuesCacheFlag: args.includes("--clear-issues-cache"),
-    showDebug: args.includes("--debug"),
-    showCacheInfo: args.includes("--cache-info"),
-    showScoringCacheInfo: args.includes("--scoring-cache-info"),
-    showHelp: args.includes("--help") || args.includes("-h") || args.includes("help"),
+    showHelp: args.includes("--help"),
     showEnvHelp: args.includes("--env-help"),
-    refreshIssuesOnly: args.includes("--refresh-issues-only"),
-    compareScores: args.includes("--compare-scores")
   };
 }
 

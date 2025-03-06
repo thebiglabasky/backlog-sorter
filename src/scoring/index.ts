@@ -65,7 +65,7 @@ export class IssueScorer {
         const comments = issue.comments || [];
 
         // Calculate issue score
-        const score = calculateIssueScore(issue, this.config.relevanceKeywords, comments);
+        const score = calculateIssueScore(issue, comments, this.config);
         scoredIssues.push(score);
       }
 

@@ -11,11 +11,10 @@ export interface IssueScore {
   finalScore: number;
   analysisDetails: {
     relevanceKeywords: number;
-    priority: string;
-    nativePriority: string;
+    priority: { score: number, label: string };
     recency: number;
     interactions: number;
-    complexity: string;
+    complexity: { score: number, label: string };
   };
 }
 

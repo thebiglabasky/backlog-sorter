@@ -86,11 +86,10 @@ export function displayDetailedResults(sortedIssues: IssueScore[]): void {
     console.log(chalk.gray(`   - Complexity Score: ${item.complexityScore.toFixed(1)}`));
     console.log(chalk.gray(`   - Analysis Details:`));
     console.log(chalk.gray(`     - Relevance Keywords: ${item.analysisDetails.relevanceKeywords}`));
-    console.log(chalk.gray(`     - Priority: ${item.analysisDetails.priority}`));
-    console.log(chalk.gray(`     - Native Priority: ${item.analysisDetails.nativePriority}`));
+    console.log(chalk.gray(`     - Priority: ${item.analysisDetails.priority.label}`));
     console.log(chalk.gray(`     - Recency: ${item.analysisDetails.recency.toFixed(1)}`));
     console.log(chalk.gray(`     - Interactions: ${item.analysisDetails.interactions}`));
-    console.log(chalk.gray(`     - Complexity: ${item.analysisDetails.complexity}`));
+    console.log(chalk.gray(`     - Complexity: ${item.analysisDetails.complexity.label}`));
   });
 }
 
@@ -106,14 +105,14 @@ export function displayStatistics(sortedIssues: IssueScore[]): void {
 
   // Count priorities
   const priorities = sortedIssues.reduce((counts, item) => {
-    const priority = item.analysisDetails.priority;
+    const priority = item.analysisDetails.priority.label;
     counts[priority] = (counts[priority] || 0) + 1;
     return counts;
   }, {} as Record<string, number>);
 
   // Count complexities
   const complexities = sortedIssues.reduce((counts, item) => {
-    const complexity = item.analysisDetails.complexity;
+    const complexity = item.analysisDetails.complexity.label;
     counts[complexity] = (counts[complexity] || 0) + 1;
     return counts;
   }, {} as Record<string, number>);

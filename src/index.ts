@@ -3,7 +3,6 @@ import chalk from 'chalk';
 import {
   clearCache,
   clearIssuesCache,
-  clearScoringCache,
   getCacheMetadata,
   getScoringCacheMetadata,
   loadCachedScoredIssues
@@ -27,13 +26,6 @@ async function main() {
   // Parse command line arguments
   const args = parseArgs();
 
-  // Handle new command structure
-  if (args.score || args.compare || args.updateLinear || args.reset || args.cacheDetails || args.scoreDetails) {
-    await handleNewCommands(args);
-    return;
-  }
-
-  // Show help message (new or legacy format)
   if (args.showHelp) {
     displayHelp();
     process.exit(0);
@@ -45,14 +37,13 @@ async function main() {
     process.exit(0);
   }
 
-  // Legacy command handling
-  await handleLegacyCommands(args);
+  await handleCommands(args);
 }
 
 /**
  * Handle the new simplified command structure
  */
-async function handleNewCommands(args: ReturnType<typeof parseArgs>) {
+async function handleCommands(args: ReturnType<typeof parseArgs>) {
   try {
     // Get API key and configuration
     const apiKey = getApiKey();
@@ -120,9 +111,7 @@ async function handleNewCommands(args: ReturnType<typeof parseArgs>) {
     // Create the issue fetcher (used by score, compare, and update commands)
     const issueFetcher = new IssueFetcher(
       client,
-      config,
-      true, // Use cache
-      false // Don't force refresh by default
+      config
     );
 
     // Handle score command
@@ -136,11 +125,7 @@ async function handleNewCommands(args: ReturnType<typeof parseArgs>) {
       }
 
       // Create the issue scorer
-      const issueScorer = new IssueScorer(
-        config,
-        true, // Use cache
-        false // Don't force refresh by default
-      );
+      const issueScorer = new IssueScorer(config);
 
       // Score issues
       const sortedIssues = await issueScorer.scoreIssues(issues);
@@ -202,16 +187,16 @@ async function handleNewCommands(args: ReturnType<typeof parseArgs>) {
 
       console.log(chalk.blue(`Loaded previous scoring results (${previousScoredIssues.length} issues) for comparison.`));
 
-      // Clear the issues cache to force refetching from Linear
-      await clearIssuesCache();
-      console.log(chalk.blue('Issues cache cleared. Fetching fresh issue data from Linear...'));
-
+      if (args.noCache) {
+        // Clear the issues cache to force refetching from Linear
+        await clearIssuesCache();
+        console.log(chalk.blue('Issues cache cleared. Fetching fresh issue data from Linear...'));
+      }
       // Force refresh issues from API
       const forceRefreshIssueFetcher = new IssueFetcher(
         client,
         config,
-        true, // Use cache for saving
-        true  // Force refresh from API
+        args.noCache
       );
 
       // Fetch issues
@@ -312,217 +297,6 @@ async function handleNewCommands(args: ReturnType<typeof parseArgs>) {
       console.log(chalk.green("Successfully updated issue order in Linear!"));
 
       return;
-    }
-  } catch (error) {
-    console.error(chalk.red('Error:'), error);
-    process.exit(1);
-  }
-}
-
-/**
- * Handle the legacy command structure
- */
-async function handleLegacyCommands(args: ReturnType<typeof parseArgs>) {
-  try {
-    // Handle cache management commands
-    if (args.clearCacheFlag) {
-      await clearCache();
-      if (!args.forceRefresh) {
-        process.exit(0);
-      }
-    }
-
-    if (args.clearScoringCacheFlag) {
-      await clearScoringCache();
-      if (!args.forceRefresh) {
-        process.exit(0);
-      }
-    }
-
-    if (args.clearIssuesCacheFlag) {
-      await clearIssuesCache();
-      if (!args.forceRefresh) {
-        process.exit(0);
-      }
-    }
-
-    // Handle compare-scores command - clear issues cache but keep scoring cache for comparison
-    if (args.compareScores) {
-      try {
-        // Load previous scoring results for comparison
-        const previousScoredIssues = await loadCachedScoredIssues(true);
-        if (!previousScoredIssues || previousScoredIssues.length === 0) {
-          console.log(chalk.yellow('No previous scoring results found for comparison.'));
-          console.log(chalk.gray('Run with --score-only first to generate scoring data.'));
-          process.exit(1);
-        }
-
-        console.log(chalk.blue(`Loaded previous scoring results (${previousScoredIssues.length} issues) for comparison.`));
-
-        // Clear the issues cache to force refetching from Linear
-        await clearIssuesCache();
-        console.log(chalk.blue('Issues cache cleared. Will fetch fresh issue data from Linear.'));
-
-        // Continue with normal execution to fetch and score issues
-        console.log(chalk.gray('Proceeding to fetch and score issues...'));
-
-        // Set flags to ensure we use the scoring cache for comparison
-        args.forceRefresh = true; // Force refresh from API
-        args.noScoringCache = true; // Don't update the scoring cache
-        args.scoreOnly = true; // Only score, don't update in Linear
-
-      } catch (error) {
-        console.error(chalk.red('Error preparing for score comparison:'));
-        if (error instanceof Error) {
-          console.error(chalk.red(`  - ${error.message}`));
-        } else {
-          console.error(chalk.red(`  - ${String(error)}`));
-        }
-        process.exit(1);
-      }
-    }
-
-    // Handle refresh-issues-only command
-    if (args.refreshIssuesOnly) {
-      try {
-        // Clear the issues cache first
-        await clearIssuesCache();
-        console.log(chalk.blue('Issues cache cleared.'));
-
-        // Load configuration
-        const config = loadConfig();
-        const apiKey = getApiKey();
-        const client = new LinearClient({ apiKey });
-
-        // Create the issue fetcher with force refresh
-        const issueFetcher = new IssueFetcher(
-          client,
-          config,
-          true, // Use cache for saving
-          true  // Force refresh from API
-        );
-
-        // Fetch issues
-        console.log(chalk.blue('Fetching issues from Linear API...'));
-        const issues = await issueFetcher.fetchIssues();
-
-        console.log(chalk.green(`Successfully fetched and cached ${issues.length} issues.`));
-        console.log(chalk.gray('Issues have been cached but not scored.'));
-        console.log(chalk.gray('To score these issues, run with --score-only.'));
-      } catch (error) {
-        console.error(chalk.red('Error refreshing issues:'));
-        if (error instanceof Error) {
-          console.error(chalk.red(`  - ${error.message}`));
-        } else {
-          console.error(chalk.red(`  - ${String(error)}`));
-        }
-        process.exit(1);
-      }
-      process.exit(0);
-    }
-
-    // Rest of the legacy command handling...
-    // (Keep the existing code for backward compatibility)
-
-    // Get API key and configuration
-    const apiKey = getApiKey();
-    const config = loadConfig();
-
-    // Create Linear client
-    const client = new LinearClient({ apiKey });
-
-    // Load previous scoring results if we're doing a score-only run with no scoring cache
-    // This allows us to compare the changes between runs
-    let previousScoredIssues: any[] | null = null;
-    if ((args.scoreOnly && args.noScoringCache) || args.compareScores) {
-      previousScoredIssues = await loadCachedScoredIssues(true);
-      if (previousScoredIssues) {
-        console.log(chalk.blue(`Loaded previous scoring results (${previousScoredIssues.length} issues) for comparison.`));
-      }
-    }
-
-    // Handle show-scores command (just display cached scores without recomputing)
-    if (args.showScores) {
-      const cachedScoredIssues = await loadCachedScoredIssues();
-      if (cachedScoredIssues && cachedScoredIssues.length > 0) {
-        console.log(chalk.green(`\nLoaded ${cachedScoredIssues.length} scored issues from cache.`));
-
-        // Display the sorted issues
-        console.log(chalk.yellow('\nSorted Issues:'));
-        cachedScoredIssues.forEach((item, index) => {
-          console.log(`${index + 1}. [${item.issue.identifier}] ${item.issue.title.substring(0, 50)}${item.issue.title.length > 50 ? '...' : ''} - Score: ${item.finalScore.toFixed(1)}`);
-        });
-
-        console.log(chalk.gray('\nTo update these in Linear, run with the --update flag.'));
-        process.exit(0);
-      } else {
-        console.log(chalk.red('\nNo scored issues found in cache.'));
-        console.log(chalk.gray('Run with --score-only to compute scores first.'));
-        process.exit(1);
-      }
-    }
-
-    // Create the issue fetcher
-    const issueFetcher = new IssueFetcher(
-      client,
-      config,
-      !args.noCache,
-      args.forceRefresh
-    );
-
-    // Fetch issues
-    const issues = await issueFetcher.fetchIssues();
-
-    if (issues.length === 0) {
-      console.log(chalk.yellow('No issues to prioritize.'));
-      return;
-    }
-
-    // Create the issue scorer
-    const issueScorer = new IssueScorer(
-      config,
-      !args.noCache && !args.noScoringCache,
-      args.forceRefresh
-    );
-
-    // Score issues
-    const sortedIssues = await issueScorer.scoreIssues(issues);
-
-    // Compare with previous scoring if available
-    if (previousScoredIssues && (args.scoreOnly && args.noScoringCache || args.compareScores)) {
-      const changes = compareScoring(previousScoredIssues, sortedIssues);
-      displayRankingChanges(changes);
-      displaySortedIssuesWithChanges(sortedIssues, changes);
-    } else {
-      // Always show all sorted issues (original behavior)
-      console.log(chalk.yellow("\nSorted Issues:"));
-      sortedIssues.forEach((item: IssueScore, index: number) => {
-        console.log(`${chalk.cyan(`${index + 1}.`)} [${chalk.bold(item.issue.identifier)}] ${item.issue.title} - Score: ${chalk.green(item.finalScore.toFixed(1))}`);
-      });
-    }
-
-    // Show more detailed results
-    if (args.showDebug) {
-      displayDetailedResults(sortedIssues);
-    }
-
-    // Show statistics if requested
-    if (args.showStats) {
-      displayStatistics(sortedIssues);
-    }
-
-    // Update the order in Linear if requested
-    if (args.shouldUpdateOrder && !args.scoreOnly) {
-      console.log(chalk.yellow("\nUpdating issue order in Linear..."));
-      const linearUpdater = new LinearUpdater(client);
-      await linearUpdater.updateIssueOrder(sortedIssues);
-      console.log(chalk.green("Successfully updated issue order in Linear!"));
-    } else if (args.scoreOnly) {
-      console.log(chalk.yellow("\nIssues scored but not updated in Linear (--score-only flag used)."));
-      console.log(chalk.gray("To apply these changes, run again with the --update flag."));
-    } else {
-      console.log(chalk.yellow("\nIssues scored but not updated in Linear."));
-      console.log(chalk.gray("To apply these changes, run again with the --update flag."));
     }
   } catch (error) {
     console.error(chalk.red('Error:'), error);

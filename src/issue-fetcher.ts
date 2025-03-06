@@ -23,6 +23,11 @@ export interface EnrichedIssue {
   priority?: number;
   createdAt: string;
   updatedAt: string;
+  estimate: number;
+  project: {
+    id: string;
+    name: string;
+  } | null;
   labels: Array<{ id: string; name: string; color?: string }>;
   comments: Array<{
     id: string;
@@ -30,13 +35,8 @@ export interface EnrichedIssue {
     createdAt?: string;
     user?: {
       id: string;
-      name: string;
-      email?: string;
+      email: string;
       displayName?: string;
-      organization?: {
-        id: string;
-        name: string;
-      } | null;
     } | null;
   }>;
 }
@@ -45,18 +45,15 @@ export class IssueFetcher {
   private client: LinearClient;
   private config: PrioritizerConfig;
   private useCache: boolean;
-  private forceRefresh: boolean;
 
   constructor(
     client: LinearClient,
     config: PrioritizerConfig,
-    useCache: boolean = true,
-    forceRefresh: boolean = false
+    useCache: boolean = true
   ) {
     this.client = client;
     this.config = config;
     this.useCache = useCache;
-    this.forceRefresh = forceRefresh;
   }
 
   /**
@@ -74,7 +71,7 @@ export class IssueFetcher {
       let cachedIssues: any[] | null = null;
 
       // If cache is enabled and not forcing refresh, check for valid cache
-      if (this.useCache && !this.forceRefresh) {
+      if (this.useCache) {
         const cacheValid = await isCacheValid(
           this.config.teamId,
           this.config.backlogStateId,
@@ -132,9 +129,6 @@ export class IssueFetcher {
         throw new Error(`Team with ID ${this.config.teamId} not found`);
       }
 
-      // Add a delay to avoid rate limiting
-      await delay(2000);
-
       // Use the raw GraphQL client to fetch all issue data in a single query
       const graphQLClient = (this.client as any).client;
 
@@ -154,8 +148,13 @@ export class IssueFetcher {
               title
               description
               priority
+              estimate
               createdAt
               updatedAt
+              project {
+                id
+                name
+              }
               labels {
                 nodes {
                   id
@@ -170,13 +169,8 @@ export class IssueFetcher {
                   createdAt
                   user {
                     id
-                    name
                     email
                     displayName
-                    organization {
-                      id
-                      name
-                    }
                   }
                 }
               }
@@ -200,10 +194,12 @@ export class IssueFetcher {
           title: node.title,
           description: node.description,
           priority: node.priority,
+          estimate: node.estimate,
           createdAt: node.createdAt,
           updatedAt: node.updatedAt,
           labels: node.labels?.nodes || [],
-          comments: node.comments?.nodes || []
+          comments: node.comments?.nodes || [],
+          project: node.project || null
         };
       });
 
@@ -216,59 +212,4 @@ export class IssueFetcher {
     }
   }
 
-  /**
-   * Fetch comments with detailed user information for an issue
-   */
-  private async fetchCommentsWithUserInfo(issueId: string): Promise<any> {
-    try {
-      console.log(chalk.gray(`Fetching comments for issue ${issueId}...`));
-
-      // Use the raw GraphQL client to fetch comments with detailed user information
-      const graphQLClient = (this.client as any).client;
-
-      // Simplified query to reduce potential errors
-      const result = await graphQLClient.rawRequest(`
-        query IssueComments($issueId: String!) {
-          issue(id: $issueId) {
-            comments {
-              nodes {
-                id
-                body
-                user {
-                  id
-                  name
-                  email
-                  displayName
-                  organization {
-                    id
-                    name
-                  }
-                }
-              }
-            }
-          }
-        }
-      `, {
-        issueId
-      });
-
-      if (!result.data || !result.data.issue || !result.data.issue.comments) {
-        console.error(chalk.yellow(`Warning: No comments data returned for issue ${issueId}`));
-        return { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } };
-      }
-
-      // Return the comments connection
-      return result.data.issue.comments;
-    } catch (error) {
-      console.error(chalk.red(`Error fetching comments for issue ${issueId}:`));
-      if (error instanceof Error) {
-        console.error(chalk.red(`  - ${error.message}`));
-      } else {
-        console.error(chalk.red(`  - ${String(error)}`));
-      }
-
-      // Return an empty comments connection as fallback
-      return { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } };
-    }
-  }
 }

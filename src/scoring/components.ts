@@ -1,29 +1,51 @@
 import { EnrichedIssue } from '../issue-fetcher.js';
 
-/**
- * Extract priority label from issue labels
- */
-export function extractPriority(issue: EnrichedIssue): string {
-  // Get labels from the issue
-  const labels = issue.labels || [];
+const HIGH_PRIO = {
+  score: 100,
+  label: 'High'
+}
 
-  // Look for priority labels
-  for (const label of labels) {
-    if (label.name.startsWith('Priority:P1')) return 'P1';
-    if (label.name.startsWith('Priority:P2')) return 'P2';
-    if (label.name.startsWith('Priority:P3')) return 'P3';
+const MEDIUM_PRIO = {
+  score: 70,
+  label: 'Medium'
+}
+
+const LOW_PRIO = {
+  score: 40,
+  label: 'Low'
+}
+
+/**
+ * Computes a priority score
+ */
+export function calculatePriorityScore(issue: EnrichedIssue): { score: number, label: string } {
+  // Use Linear's ones if defined
+  if (issue.priority) {
+    if (issue.priority <= 2) return HIGH_PRIO;
+    if (issue.priority === 3) return MEDIUM_PRIO;
+    if (issue.priority === 4) return LOW_PRIO;
   }
 
-  return 'P3'; // Default to P3 if no priority label found
+  // Look for priority labels if Linear's aren't defined
+  for (const label of issue.labels) {
+    if (label.name.startsWith('Priority:P1')) return HIGH_PRIO;
+    if (label.name.startsWith('Priority:P2')) return MEDIUM_PRIO;
+    if (label.name.startsWith('Priority:P3')) return LOW_PRIO;
+  }
+  return LOW_PRIO; // Default to P3 if no priority label found
 }
 
 /**
  * Calculate project relevance based on keywords in issue title and description
  */
-export function calculateProjectRelevance(issue: EnrichedIssue, relevanceKeywords: string[]): number {
+export function calculateProjectRelevance(issue: EnrichedIssue, relevanceKeywords: string[], targetProject?: string): number {
   let relevanceScore = 0;
   const title = issue.title.toLowerCase();
   const description = issue.description ? issue.description.toLowerCase() : '';
+  const projectName = issue.project?.name?.toLowerCase() || '';
+  if (targetProject && projectName == targetProject) {
+    return 100;
+  }
 
   // Check for keywords in title and description
   for (const keyword of relevanceKeywords) {
@@ -65,33 +87,24 @@ export function calculateRecencyScore(date: string | Date | null): number {
   const daysDifference = (now.getTime() - updateDate.getTime()) / (1000 * 60 * 60 * 24);
 
   // Score based on recency - more recent updates get higher scores
-  if (daysDifference < 7) return 100; // Updated in the last week
-  if (daysDifference < 14) return 80; // Updated in the last two weeks
-  if (daysDifference < 30) return 60; // Updated in the last month
-  if (daysDifference < 60) return 40; // Updated in the last two months
-  if (daysDifference < 90) return 20; // Updated in the last three months
-  return 10; // Updated more than three months ago
+  if (daysDifference < 30) return 100; // Updated in the last month
+  if (daysDifference < 90) return 80; // Updated in the last three months
+  if (daysDifference < 180) return 50; // Updated in the last six months
+  if (daysDifference < 365) return 10; // Updated in the last year
+  return 0; // Updated more than one year ago
 }
 
 /**
  * Estimate interactions based on comments and other activity
  */
-export function estimateInteractions(issue: EnrichedIssue, comments: any): number {
-  let interactionScore = 0;
-
+export function estimateInteractions(comments: any): number {
   // Base score on number of comments
-  const commentCount = comments?.length || 0;
-  interactionScore += Math.min(50, commentCount * 10); // Cap at 50 points from comments
-
+  let internalCommentCount = comments?.length || 0;
   // Check for external interactions (non-automated comments)
   let externalInteractions = 0;
-  let uniqueExternalUsers = new Set();
 
   if (comments) {
     for (const comment of comments) {
-      // Skip null users (automated comments)
-      if (!comment.user) continue;
-
       // Skip automated comments from Linear GitHub sync
       if (comment.body.includes('This comment thread is synced to a corresponding [GitHub issue]')) {
         continue;
@@ -99,87 +112,67 @@ export function estimateInteractions(issue: EnrichedIssue, comments: any): numbe
 
       // Skip other automated comments or system users
       if (comment.body.includes('automatically moved') ||
-          (comment.user.email && comment.user.email.includes('linear.app'))) {
+          (comment.user && comment.user.email && comment.user.email.includes('linear.app'))) {
         continue;
       }
 
-      // Use email or name as identifier
-      const userIdentifier = comment.user.email || comment.user.name || comment.user.id;
-
-      // Count unique external users for higher weighting
-      if (userIdentifier) {
-        uniqueExternalUsers.add(userIdentifier);
+      // Skip internal users (who have a Linear account)
+      if (!comment.user) {
+        externalInteractions++;
+      } else {
+        internalCommentCount++;
       }
-
-      externalInteractions++;
     }
-  }
-
-  // External interactions are weighted more heavily
-  interactionScore += Math.min(50, externalInteractions * 15); // Cap at 50 points from external interactions
-
-  // Bonus points for multiple unique external users (indicates broader interest)
-  if (uniqueExternalUsers.size > 1) {
-    interactionScore += Math.min(20, uniqueExternalUsers.size * 10);
   }
 
   // Cap the total interaction score at 100
-  return Math.min(100, interactionScore);
+  return Math.min(100, internalCommentCount * 5 + externalInteractions * 20);
+}
+
+const EASY_COMPLEXITY = {
+  score: 100,
+  label: 'Easy'
+}
+
+const MEDIUM_COMPLEXITY = {
+  score: 40,
+  label: 'Medium'
+}
+
+const HARD_COMPLEXITY = {
+  score: 5,
+  label: 'Hard'
 }
 
 /**
- * Estimate complexity based on issue description, labels, and other factors
+ * Estimate complexity based on issue description, labels, and other factors.
+ * We bias hard towards easy issues.
  */
-export function estimateComplexity(issue: EnrichedIssue): string {
-  const description = issue.description || '';
-  const title = issue.title || '';
-
-  // Get labels from the issue
-  const labels = issue.labels || [];
+export function estimateComplexity(issue: EnrichedIssue): { score: number, label: string } {
+  if (issue.estimate) {
+    if (issue.estimate < 3) {
+      return EASY_COMPLEXITY;
+    }
+    if (issue.estimate == 4) {
+      return MEDIUM_COMPLEXITY;
+    }
+    if (issue.estimate > 4) {
+      return HARD_COMPLEXITY;
+    }
+  }
 
   // Check for complexity labels
-  for (const label of labels) {
-    if (label.name.includes('Complexity:Hard')) {
-      return 'High';
+  for (const label of issue.labels) {
+    if (label.name.includes('Difficulty:Hard')) {
+      return HARD_COMPLEXITY;
     }
-    if (label.name.includes('Complexity:Low')) {
-      return 'Low';
+    if (label.name.includes('Difficulty:Medium')) {
+      return MEDIUM_COMPLEXITY;
     }
-  }
-
-  // Estimate based on description length
-  if (description.length > 1000) {
-    return 'High';
-  } else if (description.length < 200) {
-    return 'Low';
-  }
-
-  // Check for complexity indicators in title and description
-  const complexityIndicators = [
-    'complex', 'difficult', 'challenging', 'refactor', 'rewrite', 'overhaul',
-    'architecture', 'redesign', 'major', 'significant'
-  ];
-
-  const simplicityIndicators = [
-    'simple', 'easy', 'quick', 'trivial', 'straightforward', 'minor',
-    'typo', 'text', 'label', 'wording'
-  ];
-
-  const lowerTitle = title.toLowerCase();
-  const lowerDescription = description.toLowerCase();
-
-  for (const indicator of complexityIndicators) {
-    if (lowerTitle.includes(indicator) || lowerDescription.includes(indicator)) {
-      return 'High';
+    if (label.name.includes('Difficulty:Easy')) {
+      return EASY_COMPLEXITY;
     }
   }
-
-  for (const indicator of simplicityIndicators) {
-    if (lowerTitle.includes(indicator) || lowerDescription.includes(indicator)) {
-      return 'Low';
-    }
-  }
-
   // Default to medium complexity
-  return 'Medium';
+  return MEDIUM_COMPLEXITY;
 }
